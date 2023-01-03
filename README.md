@@ -73,4 +73,6 @@ You will then want to restart the Docker service or reboot your system before pr
 
 ## Licensing
 
-Builds initially based on https://github.com/dusty-nv/jetson-containers (MIT license)
+Builds initially based on https://github.com/dusty-nv/jetson-containers (MIT license).
+
+Dockerfiles will have licenses stated within them, additional files should be MIT unless stated otherwise.
