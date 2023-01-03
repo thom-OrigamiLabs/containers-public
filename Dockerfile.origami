@@ -1,0 +1,190 @@
+# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+ARG BASE_IMAGE=nvcr.io/nvidia/l4t-base:r32.4.4
+FROM ${BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+
+#
+# install prerequisites (many of these are for numpy)
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+            python3-pip \
+		  python3-dev \
+		  libopenblas-dev \
+		  libopenmpi-dev \
+            openmpi-bin \
+            openmpi-common \
+		  gfortran \
+		  libomp-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+RUN pip3 install --no-cache-dir setuptools Cython wheel
+RUN pip3 install --no-cache-dir --verbose numpy
+
+#
+# PyTorch (for JetPack 4.4 DP)
+#
+#  PyTorch v1.2.0 https://nvidia.box.com/shared/static/lufbgr3xu2uha40cs9ryq1zn4kxsnogl.whl (torch-1.2.0-cp36-cp36m-linux_aarch64.whl)
+#  PyTorch v1.3.0 https://nvidia.box.com/shared/static/017sci9z4a0xhtwrb4ps52frdfti9iw0.whl (torch-1.3.0-cp36-cp36m-linux_aarch64.whl)
+#  PyTorch v1.4.0 https://nvidia.box.com/shared/static/c3d7vm4gcs9m728j6o5vjay2jdedqb55.whl (torch-1.4.0-cp36-cp36m-linux_aarch64.whl)
+#  PyTorch v1.5.0 https://nvidia.box.com/shared/static/3ibazbiwtkl181n95n9em3wtrca7tdzp.whl (torch-1.5.0-cp36-cp36m-linux_aarch64.whl)
+#
+ARG PYTORCH_URL=https://nvidia.box.com/shared/static/lufbgr3xu2uha40cs9ryq1zn4kxsnogl.whl
+ARG PYTORCH_WHL=torch-1.2.0-cp36-cp36m-linux_aarch64.whl
+
+RUN wget --quiet --show-progress --progress=bar:force:noscroll --no-check-certificate ${PYTORCH_URL} -O ${PYTORCH_WHL} && \
+    pip3 install --no-cache-dir --verbose ${PYTORCH_WHL} && \
+    rm ${PYTORCH_WHL}
+
+
+#
+# torchvision 0.4
+#
+ARG TORCHVISION_VERSION=v0.4.0
+ARG TORCH_CUDA_ARCH_LIST="5.3;6.2;7.2;8.7"
+
+RUN printenv && echo "torchvision version = $TORCHVISION_VERSION" && echo "TORCH_CUDA_ARCH_LIST = $TORCH_CUDA_ARCH_LIST"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+		  git \
+		  build-essential \
+            libjpeg-dev \
+		  zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+RUN git clone https://github.com/pytorch/vision torchvision && \
+    cd torchvision && \
+    git checkout ${TORCHVISION_VERSION} && \
+    python3 setup.py install && \
+    cd ../ && \
+    rm -rf torchvision
+
+# note:  this was used on older torchvision versions (~0.4) to workaround a bug,
+#        but has since started causing another bug as of torchvision 0.11.1
+# ARG PILLOW_VERSION=pillow<7    
+# pip3 install --no-cache-dir "${PILLOW_VERSION}"
+
+
+# 
+# upgrade cmake - https://stackoverflow.com/a/56690743
+# this is needed for newer versions of torchaudio (>= v0.10)
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+		  software-properties-common \
+		  apt-transport-https \
+		  ca-certificates \
+		  gnupg \
+		  lsb-release \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+		  
+# typically --only-upgrade is used in the apt install, but cmake wasn't previously installed in this container	
+# note: skipping this way for now, because having trouble pinning it to specific version (see below)
+#RUN wget -qO - https://apt.kitware.com/keys/kitware-archive-latest.asc | apt-key add - && \
+#    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
+#    apt-get update && \
+#    apt-cache policy cmake && \
+#    apt-get install -y --no-install-recommends \
+#            cmake \
+#    && rm -rf /var/lib/apt/lists/* \
+#    && apt-get clean
+    
+# note:  cmake is currently pinned to 3.22.3 because of https://github.com/pytorch/pytorch/issues/74955	 
+RUN pip3 install --upgrade --no-cache-dir --verbose cmake==3.22.3
+RUN cmake --version
+
+
+# patch for https://github.com/pytorch/pytorch/issues/45323
+RUN PYTHON_ROOT=`pip3 show torch | grep Location: | cut -d' ' -f2` && \
+    TORCH_CMAKE_CONFIG=$PYTHON_ROOT/torch/share/cmake/Torch/TorchConfig.cmake && \
+    echo "patching _GLIBCXX_USE_CXX11_ABI in ${TORCH_CMAKE_CONFIG}" && \
+    sed -i 's/  set(TORCH_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=")/  set(TORCH_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0")/g' ${TORCH_CMAKE_CONFIG}
+
+    
+#
+# python pip packages
+#
+RUN pip3 install --no-cache-dir --ignore-installed pybind11 
+RUN pip3 install --no-cache-dir --verbose onnx
+RUN pip3 install --no-cache-dir --verbose onnxruntime
+RUN pip3 install --no-cache-dir --verbose scipy
+RUN pip3 install --no-cache-dir --verbose scikit-learn
+RUN pip3 install --no-cache-dir --verbose pandas
+RUN pip3 install --no-cache-dir --verbose numba
+RUN pip3 install --no-cache-dir --verbose pillow
+
+# 
+# install OpenCV (with CUDA)
+#
+RUN pip3 install opencv-python
+
+#
+# PyCUDA
+#
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+RUN echo "$PATH" && echo "$LD_LIBRARY_PATH"
+
+RUN pip3 install --no-cache-dir --verbose pycuda six
+
+
+#
+# Stonesoup
+#
+# Looking at it, torchvision builds by cloning into the repo and running setup.py
+# Don't need to try and do the straight pip git+ install if that's a problem
+RUN pip3 install --no-cache-dir --verbose stonesoup
+
+#
+# TensorRT
+#
+ENV LD_LIBRARY_PATH="/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="/usr/lib/python3.8/dist-packages:${PYTHONPATH}"
+RUN pip3 install --no-cache-dir --verbose git+https://github.com/NVIDIA-AI-IOT/torch2trt
+RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt
+RUN cd torch2trt && \
+   pip3 install -v .  && \
+   cd ../  
+#
+# YOLOX
+#
+# See above - we can copy scripts in
+# Might need to if the requirements.txt (or reqs in setup.py) are being arsey
+RUN git clone https://github.com/Megvii-BaseDetection/YOLOX
+RUN rm -f /YOLOX/requirements.txt
+COPY files/YOLOX-requirements.txt YOLOX/requirements.txt
+RUN cat YOLOX/requirements.txt
+# Looks like the cd and pip3 command have to be on the same RUN command, else it gets sad
+RUN cd /YOLOX && \
+    pip3 install -v .&& \
+   cd ../  
+# Download weights
+RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+# Compile TensorRT
+RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth
+
