@@ -29,6 +29,20 @@ $ cd /YOLOX
 $ python3 tools/demo.py image -n yolox-s -c yolox_s.pth --path assets/dog.jpg --conf 0.25 --nms 0.45 --tsize 640 --save_result --device gpu
 ``` 
 
+To copy the output files from the container:
+- Find the output file (will be dog.jpg in a time stamped folder) and the container ID. To find the folder name:
+
+``` bash
+$ ls /YOLOX/YOLOX_outputs/yolox_s/vis_res/
+$ sudo docker ps
+``` 
+
+Add them here in place of $CONTAINER_ID $TIMESTAMP
+
+``` bash
+sudo docker cp $CONTAINER_ID:/YOLOX/YOLOX_outputs/yolox_s/vis_res/$TIMESTAMP/dog.jpg ./dog.jpg
+``` 
+
 To test with a RTSP video feed:
 
 ``` bash
