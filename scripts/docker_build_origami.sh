@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Based heavily on NVIDIA's docker_build_ml.sh
+
 set -e
 
 source scripts/docker_base.sh
