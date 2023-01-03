@@ -7,6 +7,7 @@ Before proceeding, make sure you have set your [Docker Default Runtime](#docker-
 
 ``` bash
 $ git clone https://github.com/thom-OrigamiLabs/containers-public
+$ cd containers-public
 $ ./scripts/docker_build_origami.sh origami
 ``` 
 
