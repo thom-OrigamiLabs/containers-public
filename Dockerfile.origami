@@ -1,4 +1,8 @@
+# Origami Labs Docker build script for Jetson vision tracking
+
+# Based on NVIDIA's Dockerfile.pytorch (https://github.com/dusty-nv/jetson-containers/blob/master/Dockerfile.pytorch)
 # Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, ORIGAMI LABS UK. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -186,5 +190,5 @@ RUN cd /YOLOX && \
 # Download weights
 RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
 # Compile TensorRT
-RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth
+# RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth
 
