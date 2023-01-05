@@ -134,13 +134,7 @@ RUN PYTHON_ROOT=`pip3 show torch | grep Location: | cut -d' ' -f2` && \
 # python pip packages
 #
 RUN pip3 install --no-cache-dir --ignore-installed pybind11 
-RUN pip3 install --no-cache-dir --verbose onnx
-RUN pip3 install --no-cache-dir --verbose onnxruntime
-RUN pip3 install --no-cache-dir --verbose scipy
-RUN pip3 install --no-cache-dir --verbose scikit-learn
-RUN pip3 install --no-cache-dir --verbose pandas
-RUN pip3 install --no-cache-dir --verbose numba
-RUN pip3 install --no-cache-dir --verbose pillow
+RUN pip3 install --no-cache-dir --verbose onnx onnxruntime scipy scikit-learn pandas numba pillow
 
 # 
 # install OpenCV (with CUDA)
@@ -160,9 +154,19 @@ RUN pip3 install --no-cache-dir --verbose pycuda six
 #
 # Stonesoup
 #
-# Looking at it, torchvision builds by cloning into the repo and running setup.py
-# Don't need to try and do the straight pip git+ install if that's a problem
+# This should be our fork of stonesoup
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+		  ffmpeg
+RUN pip3 install ffmpeg-python moviepy
 RUN pip3 install --no-cache-dir --verbose stonesoup
+# need to copy and install forked version
+COPY files/stonesoup.tar.gz /stonesoup.tar.gz
+RUN cd / && \
+    tar -xf stonesoup.tar.gz && \
+    cd stonesoup-fork && \
+    pip3 install -v . && \
+    && cd ..
 
 #
 # TensorRT
@@ -173,7 +177,7 @@ RUN pip3 install --no-cache-dir --verbose git+https://github.com/NVIDIA-AI-IOT/t
 RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt
 RUN cd torch2trt && \
    pip3 install -v .  && \
-   cd ../  
+   cd ..  
 #
 # YOLOX
 #
@@ -186,9 +190,9 @@ RUN cat YOLOX/requirements.txt
 # Looks like the cd and pip3 command have to be on the same RUN command, else it gets sad
 RUN cd /YOLOX && \
     pip3 install -v .&& \
-   cd ../  
+   cd ..  
 # Download weights
-RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth && cd ..
 # Compile TensorRT
-# RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth
+# RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth && cd ..
 
