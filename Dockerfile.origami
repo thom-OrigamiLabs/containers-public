@@ -1,8 +1,4 @@
-# Origami Labs Docker build script for Jetson vision tracking
-
-# Based on NVIDIA's Dockerfile.pytorch (https://github.com/dusty-nv/jetson-containers/blob/master/Dockerfile.pytorch)
 # Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
-# Copyright (c) 2023, ORIGAMI LABS UK. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -152,24 +148,7 @@ RUN pip3 install --no-cache-dir --verbose pycuda six
 
 
 #
-# Stonesoup
-#
-# This should be our fork of stonesoup
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-		  ffmpeg
-RUN pip3 install ffmpeg-python moviepy
-RUN pip3 install --no-cache-dir --verbose stonesoup
-# need to copy and install forked version
-COPY files/stonesoup.tar.gz /stonesoup.tar.gz
-RUN cd / && \
-    tar -xf stonesoup.tar.gz && \
-    cd stonesoup-fork && \
-    pip3 install -v . && \
-    && cd ..
-
-#
-# TensorRT
+# TensorRT / torch2trt
 #
 ENV LD_LIBRARY_PATH="/usr/lib/aarch64-linux-gnu/tegra:${LD_LIBRARY_PATH}"
 ENV PYTHONPATH="/usr/lib/python3.8/dist-packages:${PYTHONPATH}"
@@ -177,7 +156,9 @@ RUN pip3 install --no-cache-dir --verbose git+https://github.com/NVIDIA-AI-IOT/t
 RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt
 RUN cd torch2trt && \
    pip3 install -v .  && \
-   cd ..  
+   cd ../ && \
+   rm -rf torch2trt
+   
 #
 # YOLOX
 #
@@ -190,9 +171,33 @@ RUN cat YOLOX/requirements.txt
 # Looks like the cd and pip3 command have to be on the same RUN command, else it gets sad
 RUN cd /YOLOX && \
     pip3 install -v .&& \
-   cd ..  
+   cd ../
 # Download weights
 RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth && cd ..
-# Compile TensorRT
-# RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth && cd ..
+# Compile TensorRT engine
+# Note that this outputs to /YOLOX/YOLOX_outputs/yolox_s/
+RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth && cd ..
+
+#
+# CLIP
+#
+RUN pip3 install git+https://github.com/openai/CLIP.git
+# Run this to download model weights
+COPY files/initialise_clip.py tmp/initialise_clip.py
+RUN python3 /tmp/initialise_clip.py
+
+#
+# Stonesoup
+#
+# This should be our fork of stonesoup
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+		  ffmpeg
+RUN pip3 install ffmpeg-python moviepy
+# need to copy and install forked version
+RUN git clone https://github.com/thom-OrigamiLabs/Stone-Soup
+RUN cd Stone-Soup && \
+    pip3 install -v . && \
+    cd ../ && \
+    rm -rf Stone-Soup
 
