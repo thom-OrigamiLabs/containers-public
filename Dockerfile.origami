@@ -201,7 +201,12 @@ RUN cd Stone-Soup && \
     pip3 install . && \
     cd ../ && \
     rm -rf Stone-Soup
-    
+ 
+#
+# Networking
+#
+RUN pip3 install pynng
+ 
 #
 # Podview
 #
@@ -210,5 +215,6 @@ RUN cd Stone-Soup && \
 #RUN mv /YOLOX/YOLOX_outputs/yolox_s/model_trt.pth /Weights/yolox_s_trt.pth && \
 #     mv /YOLOX/yolox_s.pth /Weights/yolox_s.pth
 #ENTRYPOINT python3 /podview_dev.py
+
 
 
