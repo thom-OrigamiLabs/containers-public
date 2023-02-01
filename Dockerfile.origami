@@ -175,10 +175,16 @@ RUN cd /YOLOX && \
     pip3 install -v .&& \
    cd ../
 # Download weights
-RUN cd /YOLOX && wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth && cd ..
+RUN cd /YOLOX && \
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_m.pth && \
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth && \
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth && \
+    cd ..
 # Compile TensorRT engine
 # Note that this outputs to /YOLOX/YOLOX_outputs/yolox_s/
+RUN cd /YOLOX && python3 tools/trt.py -n yolox-m -c yolox_m.pth && cd ..
 RUN cd /YOLOX && python3 tools/trt.py -n yolox-s -c yolox_s.pth && cd ..
+#RUN cd /YOLOX && python3 tools/trt.py -n yolox-tiny -c yolox_tiny.pth && cd ..
 
 #
 # CLIP
@@ -201,20 +207,27 @@ RUN cd Stone-Soup && \
     pip3 install . && \
     cd ../ && \
     rm -rf Stone-Soup
- 
+    
+    
 #
 # Networking
 #
 RUN pip3 install pynng
  
+    
 #
 # Podview
 #
-# Copy over local podview code and move the compiled TRT file
-#COPY files/Podview /
-#RUN mv /YOLOX/YOLOX_outputs/yolox_s/model_trt.pth /Weights/yolox_s_trt.pth && \
-#     mv /YOLOX/yolox_s.pth /Weights/yolox_s.pth
-#ENTRYPOINT python3 /podview_dev.py
-
+# Copy over local podview code and move the weights files (both pt and TRT)
+# COPY files/Podview /
+# RUN mv /YOLOX/YOLOX_outputs/yolox_m/model_trt.pth /Weights/yolox_m_trt.pth && \
+#     mv /YOLOX/YOLOX_outputs/yolox_s/model_trt.pth /Weights/yolox_s_trt.pth && \
+#     mv /YOLOX/YOLOX_outputs/yolox_tiny/model_trt.pth /Weights/yolox_tiny_trt.pth && \
+#     mv /YOLOX/yolox_m.pth /Weights/yolox_m.pth && \
+#     mv /YOLOX/yolox_s.pth /Weights/yolox_s.pth && \
+#     mv /YOLOX/yolox_tiny.pth /Weights/yolox_tiny.pth
+# Set the entrypoint to run the code on startup
+# Maybe alter this to ingest a config file?
+# ENTRYPOINT python3 /podview_dev.py
 
 
